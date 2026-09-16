@@ -3,87 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-
 <title>KamekVision</title>
 
+<!-- ===================================================================== -->
+<!--  EDIT THIS ONE LINE. Nothing else in this file needs changing.        -->
+<!--  Use the /exec URL from Deploy → Manage deployments. Not /dev.        -->
+<!-- ===================================================================== -->
+<script>
+  var APP_URL = "https://script.google.com/macros/s/AKfycbyvNLfJH6d_Ub6fgTFaamZGzjjrDPsTwQYeal24J-P1hWwi-kszunXsXbpIANA0Fn0/exec";
+</script>
+<!-- ===================================================================== -->
+
 <!--
-  This page exists for one reason: iOS reads the home-screen icon from the
-  TOP-LEVEL document, and an Apps Script web app is served inside an iframe
-  whose head belongs to Google. Nothing the app itself declares can reach it.
+  Why this page exists: iOS reads the home-screen icon from the TOP-LEVEL
+  document. An Apps Script web app is served inside an iframe whose head
+  belongs to Google, so nothing the app declares ever reaches that document.
+  Running the app inside this page puts a document you control at the top.
 
-  So the app runs inside this page instead. Add THIS url to the home screen —
-  not the /exec one — and the icon, the name and the standalone chrome all
-  come from here.
-
-  Requires the matching change in Code.gs:
+  Requires this in Code.gs, or the frame stays blank:
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-  Without it Apps Script refuses to be framed and this page stays blank.
 -->
 
-<!-- iOS home screen. 180x180 is the size Apple actually asks for. -->
 <link rel="apple-touch-icon" href="favicon/kamek_thumbnail.png">
+<link rel="icon" type="image/png" href="favicon/kamek_thumbnail.png">
+<link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KamekVision">
-
-<!-- Browser tab and Android -->
-<link rel="icon" type="image/png" href="favicon/kamek_thumbnail.png">
-<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#16202B">
 
 <style>
-  /* Match the app's background so the frame is invisible, including behind
-     the notch and the home indicator. */
   html,body{margin:0;padding:0;height:100%;background:#16202B;overflow:hidden}
-  iframe{
-    display:block;border:0;width:100%;
-    height:100vh;height:100dvh;   /* dvh keeps Safari's toolbars from clipping it */
-    background:#16202B;
+  iframe{display:block;border:0;width:100%;height:100vh;height:100dvh;background:#16202B}
+  #setup{
+    position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    padding:28px;background:#16202B;color:#E4EDF5;
+    font:15px/1.7 system-ui,-apple-system,sans-serif;
   }
-  /* Shown only if the frame never loads — otherwise it sits behind the iframe. */
-  #fallback{
-    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    padding:24px;color:#8CA3B8;font:15px/1.6 system-ui,sans-serif;text-align:center;
+  #setup div{max-width:460px}
+  #setup h1{font-size:19px;margin:0 0 12px}
+  #setup code{
+    display:block;background:#1E2B39;border:1px solid #33475C;border-radius:6px;
+    padding:10px 12px;margin:10px 0;font:13px/1.6 ui-monospace,monospace;
+    color:#E8B84B;word-break:break-all;
   }
-  #fallback a{color:#E8B84B}
+  #setup p{color:#8CA3B8;margin:10px 0}
 </style>
 </head>
 <body>
 
-<div id="fallback">
+<!-- Shown only when APP_URL has not been set, so a missed step says so
+     instead of silently requesting a relative path and 404ing. -->
+<div id="setup">
   <div>
-    KamekVision could not load in this frame.<br>
-    <a id="direct" href="#">Open it directly</a>
+    <h1>One step left</h1>
+    <p>Open <b>index.html</b> in the repo, and replace the placeholder near the
+       top of the file with your deployed web app URL:</p>
+    <code>var APP_URL = "https://script.google.com/macros/s/…/exec";</code>
+    <p>Take it from <b>Deploy → Manage deployments</b> in the Apps Script editor.
+       The <b>/exec</b> one — <b>/dev</b> only works while you are signed into the
+       editor.</p>
   </div>
 </div>
 
-<iframe id="app" title="KamekVision"
-        allow="clipboard-write; camera"
-        referrerpolicy="no-referrer-when-downgrade"></iframe>
+<iframe id="app" title="KamekVision" allow="clipboard-write; camera"></iframe>
 
 <script>
-// ---------------------------------------------------------------------------
-// Put your deployed web app URL here. Use the /exec one, not /dev — /dev
-// requires an editor session and will not load for anyone else.
-// ---------------------------------------------------------------------------
-var APP_URL = 'PASTE_YOUR_EXEC_URL_HERE';
+(function () {
+  var frame = document.getElementById('app');
+  var setup = document.getElementById('setup');
 
-document.getElementById('direct').href = APP_URL;
+  // A placeholder resolves as a relative path and returns GitHub's own 404
+  // inside the frame, which looks like the wrapper is broken when it is not.
+  // Check before loading anything.
+  var looksReal = /^https:\/\/script\.google\.com\/.+\/exec(\?|$)/.test(APP_URL);
 
-// Carry any query string through, so a link like ?mode=kt still reaches the app.
-var src = APP_URL + (location.search ? (APP_URL.indexOf('?') < 0 ? '?' : '&') +
-                                        location.search.slice(1) : '');
-document.getElementById('app').src = src;
+  if (!looksReal) {
+    frame.style.display = 'none';
+    setup.style.display = 'flex';
+    return;
+  }
 
-// Keep the frame the height of the visible viewport. iOS changes this as the
-// toolbars slide, and a fixed height leaves a band of background at the bottom.
-function fit(){
-  var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  document.getElementById('app').style.height = h + 'px';
-}
-fit();
-window.addEventListener('resize', fit);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+  // Carry a query string through, so ?mode=kt still reaches the app.
+  var src = APP_URL;
+  if (location.search) src += (src.indexOf('?') < 0 ? '?' : '&') + location.search.slice(1);
+  frame.src = src;
+
+  // iOS resizes the visible viewport as its toolbars slide. A fixed height
+  // leaves a band of background at the bottom.
+  function fit() {
+    var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    frame.style.height = h + 'px';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+})();
 </script>
 </body>
 </html>
