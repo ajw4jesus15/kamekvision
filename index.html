@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>KamekVision</title>
+
+<!--
+  This page exists for one reason: iOS reads the home-screen icon from the
+  TOP-LEVEL document, and an Apps Script web app is served inside an iframe
+  whose head belongs to Google. Nothing the app itself declares can reach it.
+
+  So the app runs inside this page instead. Add THIS url to the home screen —
+  not the /exec one — and the icon, the name and the standalone chrome all
+  come from here.
+
+  Requires the matching change in Code.gs:
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+  Without it Apps Script refuses to be framed and this page stays blank.
+-->
+
+<!-- iOS home screen. 180x180 is the size Apple actually asks for. -->
+<link rel="apple-touch-icon" href="favicon/kamek_thumbnail.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KamekVision">
+
+<!-- Browser tab and Android -->
+<link rel="icon" type="image/png" href="favicon/kamek_thumbnail.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#16202B">
+
+<style>
+  /* Match the app's background so the frame is invisible, including behind
+     the notch and the home indicator. */
+  html,body{margin:0;padding:0;height:100%;background:#16202B;overflow:hidden}
+  iframe{
+    display:block;border:0;width:100%;
+    height:100vh;height:100dvh;   /* dvh keeps Safari's toolbars from clipping it */
+    background:#16202B;
+  }
+  /* Shown only if the frame never loads — otherwise it sits behind the iframe. */
+  #fallback{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    padding:24px;color:#8CA3B8;font:15px/1.6 system-ui,sans-serif;text-align:center;
+  }
+  #fallback a{color:#E8B84B}
+</style>
+</head>
+<body>
+
+<div id="fallback">
+  <div>
+    KamekVision could not load in this frame.<br>
+    <a id="direct" href="#">Open it directly</a>
+  </div>
+</div>
+
+<iframe id="app" title="KamekVision"
+        allow="clipboard-write; camera"
+        referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+<script>
+// ---------------------------------------------------------------------------
+// Put your deployed web app URL here. Use the /exec one, not /dev — /dev
+// requires an editor session and will not load for anyone else.
+// ---------------------------------------------------------------------------
+var APP_URL = 'PASTE_YOUR_EXEC_URL_HERE';
+
+document.getElementById('direct').href = APP_URL;
+
+// Carry any query string through, so a link like ?mode=kt still reaches the app.
+var src = APP_URL + (location.search ? (APP_URL.indexOf('?') < 0 ? '?' : '&') +
+                                        location.search.slice(1) : '');
+document.getElementById('app').src = src;
+
+// Keep the frame the height of the visible viewport. iOS changes this as the
+// toolbars slide, and a fixed height leaves a band of background at the bottom.
+function fit(){
+  var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  document.getElementById('app').style.height = h + 'px';
+}
+fit();
+window.addEventListener('resize', fit);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+</script>
+</body>
+</html>
