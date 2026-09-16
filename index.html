@@ -10,18 +10,25 @@
 <!--  Use the /exec URL from Deploy → Manage deployments. Not /dev.        -->
 <!-- ===================================================================== -->
 <script>
-  var APP_URL = "https://script.google.com/macros/s/AKfycbyvNLfJH6d_Ub6fgTFaamZGzjjrDPsTwQYeal24J-P1hWwi-kszunXsXbpIANA0Fn0/exec";
+  var APP_URL = "PASTE_YOUR_EXEC_URL_HERE";
 </script>
 <!-- ===================================================================== -->
 
 <!--
-  Why this page exists: iOS reads the home-screen icon from the TOP-LEVEL
-  document. An Apps Script web app is served inside an iframe whose head
-  belongs to Google, so nothing the app declares ever reaches that document.
-  Running the app inside this page puts a document you control at the top.
+  Why this page exists, and why it redirects rather than frames.
 
-  Requires this in Code.gs, or the frame stays blank:
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+  iOS reads the home-screen icon from the TOP-LEVEL document. An Apps Script
+  web app is served inside an iframe whose head belongs to Google, so nothing
+  the app declares can reach it. This page puts a document you control at the
+  top — which is where the icon comes from.
+
+  The earlier version embedded the app in an iframe. That works on desktop and
+  is refused by Google on mobile Safari with a 401, which is the one platform
+  the icon was for. So it launches the app instead of containing it.
+
+  Launched from the home screen it goes straight through. Opened in a browser
+  it shows a splash, so there is something to add to the home screen in the
+  first place.
 -->
 
 <link rel="apple-touch-icon" href="favicon/kamek_thumbnail.png">
@@ -33,71 +40,73 @@
 <meta name="theme-color" content="#16202B">
 
 <style>
-  html,body{margin:0;padding:0;height:100%;background:#16202B;overflow:hidden}
-  iframe{display:block;border:0;width:100%;height:100vh;height:100dvh;background:#16202B}
-  #setup{
-    position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-    padding:28px;background:#16202B;color:#E4EDF5;
-    font:15px/1.7 system-ui,-apple-system,sans-serif;
-  }
-  #setup div{max-width:460px}
-  #setup h1{font-size:19px;margin:0 0 12px}
-  #setup code{
-    display:block;background:#1E2B39;border:1px solid #33475C;border-radius:6px;
-    padding:10px 12px;margin:10px 0;font:13px/1.6 ui-monospace,monospace;
-    color:#E8B84B;word-break:break-all;
-  }
-  #setup p{color:#8CA3B8;margin:10px 0}
+  html,body{margin:0;height:100%;background:#16202B;color:#E4EDF5;
+    font:16px/1.6 system-ui,-apple-system,sans-serif}
+  .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;
+    padding:32px;box-sizing:border-box}
+  .card{max-width:420px;text-align:center}
+  img{width:96px;height:96px;border-radius:22px;margin-bottom:18px}
+  h1{font-size:22px;margin:0 0 6px}
+  p{color:#8CA3B8;font-size:14px;margin:8px 0 0}
+  a.go{display:inline-block;margin-top:20px;background:#E8B84B;color:#16202B;
+    text-decoration:none;font-weight:700;padding:13px 26px;border-radius:6px}
+  .hint{margin-top:26px;padding-top:18px;border-top:1px solid #33475C;
+    color:#8CA3B8;font-size:13px;text-align:left}
+  code{color:#E8B84B;font:12px ui-monospace,monospace;display:block;
+    background:#1E2B39;border:1px solid #33475C;border-radius:6px;
+    padding:9px 11px;margin:8px 0;word-break:break-all}
 </style>
 </head>
 <body>
-
-<!-- Shown only when APP_URL has not been set, so a missed step says so
-     instead of silently requesting a relative path and 404ing. -->
-<div id="setup">
-  <div>
-    <h1>One step left</h1>
-    <p>Open <b>index.html</b> in the repo, and replace the placeholder near the
-       top of the file with your deployed web app URL:</p>
-    <code>var APP_URL = "https://script.google.com/macros/s/AKfycbyvNLfJH6d_Ub6fgTFaamZGzjjrDPsTwQYeal24J-P1hWwi-kszunXsXbpIANA0Fn0/exec";</code>
-    <p>Take it from <b>Deploy → Manage deployments</b> in the Apps Script editor.
-       The <b>/exec</b> one — <b>/dev</b> only works while you are signed into the
-       editor.</p>
+<div class="wrap"><div class="card" id="card" style="visibility:hidden">
+  <img src="favicon/kamek_thumbnail.png" alt="">
+  <h1>KamekVision</h1>
+  <p id="sub">Ready.</p>
+  <a class="go" id="go" href="#">Open KamekVision</a>
+  <div class="hint" id="hint">
+    <b>Add to your home screen</b><br>
+    Tap the share button, then <b>Add to Home Screen</b>. The icon opens the app
+    directly from here.
   </div>
-</div>
-
-<iframe id="app" title="KamekVision" allow="clipboard-write; camera"></iframe>
+</div></div>
 
 <script>
 (function () {
-  var frame = document.getElementById('app');
-  var setup = document.getElementById('setup');
+  var card = document.getElementById('card');
+  var go   = document.getElementById('go');
+  var sub  = document.getElementById('sub');
+  var hint = document.getElementById('hint');
 
-  // A placeholder resolves as a relative path and returns GitHub's own 404
-  // inside the frame, which looks like the wrapper is broken when it is not.
-  // Check before loading anything.
-  var looksReal = /^https:\/\/script\.google\.com\/.+\/exec(\?|$)/.test(APP_URL);
-
-  if (!looksReal) {
-    frame.style.display = 'none';
-    setup.style.display = 'flex';
+  // A placeholder would resolve as a relative path and return GitHub's own 404,
+  // which looks like this page is broken when it is not. Say so instead.
+  if (!/^https:\/\/script\.google\.com\/.+\/exec(\?|$)/.test(APP_URL)) {
+    card.style.visibility = 'visible';
+    sub.textContent = 'One step left.';
+    go.style.display = 'none';
+    hint.innerHTML = 'Open <b>index.html</b> in the repo and replace the ' +
+      'placeholder near the top with your deployed web app URL:' +
+      '<code>var APP_URL = "https://script.google.com/macros/s/…/exec";</code>' +
+      'Take it from <b>Deploy → Manage deployments</b>. The <b>/exec</b> one — ' +
+      '<b>/dev</b> only works while you are signed into the editor.';
     return;
   }
 
   // Carry a query string through, so ?mode=kt still reaches the app.
-  var src = APP_URL;
-  if (location.search) src += (src.indexOf('?') < 0 ? '?' : '&') + location.search.slice(1);
-  frame.src = src;
+  var target = APP_URL;
+  if (location.search) target += (target.indexOf('?') < 0 ? '?' : '&') + location.search.slice(1);
+  go.href = target;
 
-  // iOS resizes the visible viewport as its toolbars slide. A fixed height
-  // leaves a band of background at the bottom.
-  function fit() {
-    var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-    frame.style.height = h + 'px';
+  // Launched from the home screen: go straight through, no extra tap.
+  // Opened in a browser: show the splash, so there is something to add.
+  var standalone = window.navigator.standalone === true ||
+                   (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+
+  if (standalone) {
+    location.replace(target);
+    return;
   }
-  fit();
-  window.addEventListener('resize', fit);
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+
+  card.style.visibility = 'visible';
 })();
 </script>
 </body>
